@@ -1472,7 +1472,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
             }
 
             // remove arena spell coldowns/buffs now to also remove pet's cooldowns before it's temporarily unsummoned
-            if (mEntry->IsBattleArena())
+            if (mEntry->IsBattleArena() && !IsGameMaster())
             {
                 RemoveArenaSpellCooldowns(true);
                 RemoveArenaAuras();
@@ -1663,7 +1663,7 @@ void Player::SetObjectScale(float scale)
         SendMovementSetCollisionHeight(scale * GetCollisionHeight(), WorldPackets::Movement::UpdateCollisionHeightReason::Scale);
 }
 
-bool Player::IsImmunedToSpellEffect(SpellInfo const* spellInfo, uint32 index, Unit* caster) const
+bool Player::IsImmunedToSpellEffect(SpellInfo const* spellInfo, uint32 index, WorldObject const* caster) const
 {
     SpellEffectInfo const* effect = spellInfo->GetEffect(index);
     if (!effect || !effect->IsEffect())
@@ -2382,6 +2382,7 @@ void Player::GiveLevel(uint8 level)
     }
 
     UpdateCriteria(CRITERIA_TYPE_REACH_LEVEL);
+    UpdateCriteria(CRITERIA_TYPE_ACTIVELY_REACH_LEVEL, level);
 
     PushQuests();
 
@@ -6274,13 +6275,16 @@ int32 Player::CalculateReputationGain(ReputationSource source, uint32 creatureOr
 
     float percent = 100.0f;
 
-    float repMod = noQuestBonus ? 0.0f : float(GetTotalAuraModifier(SPELL_AURA_MOD_REPUTATION_GAIN));
+    if (!noBonuses)
+    {
+        float repMod = noQuestBonus ? 0.0f : float(GetTotalAuraModifier(SPELL_AURA_MOD_REPUTATION_GAIN));
 
-    // faction specific auras only seem to apply to kills
-    if (source == REPUTATION_SOURCE_KILL)
-        repMod += GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_FACTION_REPUTATION_GAIN, faction);
+        // faction specific auras only seem to apply to kills
+        if (source == REPUTATION_SOURCE_KILL)
+            repMod += GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_FACTION_REPUTATION_GAIN, faction);
 
-    percent += rep > 0 ? repMod : -repMod;
+        percent += rep > 0 ? repMod : -repMod;
+    }
 
     float rate;
     switch (source)
@@ -12045,7 +12049,7 @@ Item* Player::StoreNewItem(ItemPosCountVec const& pos, uint32 itemId, bool updat
     if (item)
     {
         ItemAddedQuestCheck(itemId, count);
-        UpdateCriteria(CRITERIA_TYPE_RECEIVE_EPIC_ITEM, itemId, count);
+        UpdateCriteria(CRITERIA_TYPE_OBTAIN_ANY_ITEM, itemId, count);
         UpdateCriteria(CRITERIA_TYPE_OWN_ITEM, itemId, 1);
 
         item->AddItemFlag(ITEM_FIELD_FLAG_NEW_ITEM);
@@ -12235,7 +12239,7 @@ Item* Player::EquipNewItem(uint16 pos, uint32 item, ItemContext context, bool up
     if (Item* pItem = Item::CreateItem(item, 1, context, this))
     {
         ItemAddedQuestCheck(item, 1);
-        UpdateCriteria(CRITERIA_TYPE_RECEIVE_EPIC_ITEM, item, 1);
+        UpdateCriteria(CRITERIA_TYPE_OBTAIN_ANY_ITEM, item, 1);
         return EquipItem(pos, pItem, update);
     }
 
@@ -12350,7 +12354,7 @@ Item* Player::EquipItem(uint16 pos, Item* pItem, bool update)
 
     // only for full equip instead adding to stack
     UpdateCriteria(CRITERIA_TYPE_EQUIP_ITEM, pItem->GetEntry());
-    UpdateCriteria(CRITERIA_TYPE_EQUIP_EPIC_ITEM, slot, pItem->GetEntry());
+    UpdateCriteria(CRITERIA_TYPE_EQUIP_ITEM_IN_SLOT, slot, pItem->GetEntry());
 
     UpdateAverageItemLevelEquipped();
 
@@ -12478,7 +12482,7 @@ void Player::QuickEquipItem(uint16 pos, Item* pItem)
             CheckTitanGripPenalty();
 
         UpdateCriteria(CRITERIA_TYPE_EQUIP_ITEM, pItem->GetEntry());
-        UpdateCriteria(CRITERIA_TYPE_EQUIP_EPIC_ITEM, slot, pItem->GetEntry());
+        UpdateCriteria(CRITERIA_TYPE_EQUIP_ITEM_IN_SLOT, slot, pItem->GetEntry());
     }
 }
 
@@ -12488,12 +12492,14 @@ void Player::SetVisibleItemSlot(uint8 slot, Item* pItem)
     if (pItem)
     {
         SetUpdateFieldValue(itemField.ModifyValue(&UF::VisibleItem::ItemID), pItem->GetVisibleEntry(this));
+        SetUpdateFieldValue(itemField.ModifyValue(&UF::VisibleItem::SecondaryItemModifiedAppearanceID), pItem->GetVisibleSecondaryModifiedAppearanceId(this));
         SetUpdateFieldValue(itemField.ModifyValue(&UF::VisibleItem::ItemAppearanceModID), pItem->GetVisibleAppearanceModId(this));
         SetUpdateFieldValue(itemField.ModifyValue(&UF::VisibleItem::ItemVisual), pItem->GetVisibleItemVisual(this));
     }
     else
     {
         SetUpdateFieldValue(itemField.ModifyValue(&UF::VisibleItem::ItemID), 0);
+        SetUpdateFieldValue(itemField.ModifyValue(&UF::VisibleItem::SecondaryItemModifiedAppearanceID), 0);
         SetUpdateFieldValue(itemField.ModifyValue(&UF::VisibleItem::ItemAppearanceModID), 0);
         SetUpdateFieldValue(itemField.ModifyValue(&UF::VisibleItem::ItemVisual), 0);
     }
@@ -12633,7 +12639,7 @@ void Player::MoveItemToInventory(ItemPosCountVec const& dest, Item* pItem, bool 
 {
     // update quest counters
     ItemAddedQuestCheck(pItem->GetEntry(), pItem->GetCount());
-    UpdateCriteria(CRITERIA_TYPE_RECEIVE_EPIC_ITEM, pItem->GetEntry(), pItem->GetCount());
+    UpdateCriteria(CRITERIA_TYPE_OBTAIN_ANY_ITEM, pItem->GetEntry(), pItem->GetCount());
 
     // store item
     Item* pLastItem = StoreItem(dest, pItem, update);
@@ -18756,7 +18762,13 @@ void Player::_LoadAuras(PreparedQueryResult auraResult, PreparedQueryResult effe
 
             AuraLoadEffectInfo& info = effectInfo[key];
             ObjectGuid castId = ObjectGuid::Create<HighGuid::Cast>(SPELL_CAST_SOURCE_NORMAL, GetMapId(), spellInfo->Id, GetMap()->GenerateLowGuid<HighGuid::Cast>());
-            if (Aura* aura = Aura::TryCreate(spellInfo, castId, key.EffectMask, this, nullptr, difficulty, info.BaseAmounts.data(), nullptr, casterGuid, itemGuid, castItemId, castItemLevel))
+            AuraCreateInfo createInfo(castId, spellInfo, difficulty, key.EffectMask, this);
+            createInfo
+                .SetCasterGUID(casterGuid)
+                .SetBaseAmount(info.BaseAmounts.data())
+                .SetCastItem(itemGuid, castItemId, castItemLevel);
+
+            if (Aura* aura = Aura::TryCreate(createInfo))
             {
                 if (!aura->CanBeSaved())
                 {
@@ -18870,8 +18882,8 @@ void Player::_LoadInventory(PreparedQueryResult result, PreparedQueryResult arti
                             azeriteEmpoweredItem->LoadAzeriteEmpoweredItemData(this, *addionalDataPtr->AzeriteEmpoweredItem);
                 }
 
-                ObjectGuid bagGuid = fields[43].GetUInt64() ? ObjectGuid::Create<HighGuid::Item>(fields[43].GetUInt64()) : ObjectGuid::Empty;
-                uint8 slot = fields[44].GetUInt8();
+                ObjectGuid bagGuid = fields[51].GetUInt64() ? ObjectGuid::Create<HighGuid::Item>(fields[51].GetUInt64()) : ObjectGuid::Empty;
+                uint8 slot = fields[52].GetUInt8();
 
                 GetSession()->GetCollectionMgr()->CheckHeirloomUpgrades(item);
                 GetSession()->GetCollectionMgr()->AddItemAppearance(item);
@@ -19213,7 +19225,7 @@ Item* Player::_LoadMailedItem(ObjectGuid const& playerGuid, Player* player, uint
 
     Item* item = NewItemOrBag(proto);
 
-    ObjectGuid ownerGuid = fields[43].GetUInt64() ? ObjectGuid::Create<HighGuid::Player>(fields[43].GetUInt64()) : ObjectGuid::Empty;
+    ObjectGuid ownerGuid = fields[51].GetUInt64() ? ObjectGuid::Create<HighGuid::Player>(fields[51].GetUInt64()) : ObjectGuid::Empty;
     if (!item->LoadFromDB(itemGuid, ownerGuid, fields, itemEntry))
     {
         TC_LOG_ERROR("entities.player", "Player::_LoadMailedItems: Item (GUID: " UI64FMTD ") in mail (%u) doesn't exist, deleted from mail.", itemGuid, mailId);
@@ -19344,7 +19356,7 @@ void Player::_LoadMail()
         do
         {
             Field* fields = result->Fetch();
-            uint32 mailId = fields[44].GetUInt32();
+            uint32 mailId = fields[52].GetUInt32();
             _LoadMailedItem(GetGUID(), this, mailId, mailById[mailId], fields, Trinity::Containers::MapGetValuePtr(additionalData, fields[0].GetUInt64()));
         }
         while (result->NextRow());
@@ -19384,7 +19396,8 @@ void Player::_LoadQuestStatus(PreparedQueryResult result)
             if (quest)
             {
                 // find or create
-                QuestStatusData& questStatusData = m_QuestStatus[quest_id];
+                auto questStatusItr = m_QuestStatus.emplace(quest_id, QuestStatusData{}).first;
+                QuestStatusData& questStatusData = questStatusItr->second;
 
                 uint8 qstatus = fields[1].GetUInt8();
                 if (qstatus < MAX_QUEST_STATUS)
@@ -19417,6 +19430,10 @@ void Player::_LoadQuestStatus(PreparedQueryResult result)
                 if (slot < MAX_QUEST_LOG_SIZE && questStatusData.Status != QUEST_STATUS_NONE)
                 {
                     questStatusData.Slot = slot;
+
+                    for (QuestObjective const& obj : quest->GetObjectives())
+                        m_questObjectiveStatus.emplace(std::make_pair(QuestObjectiveType(obj.Type), obj.ObjectID), QuestObjectiveStatusData{ questStatusItr, &obj });
+
                     SetQuestSlot(slot, quest_id);
                     SetQuestSlotEndTime(slot, endTime);
                     SetQuestSlotAcceptTime(slot, acceptTime);
@@ -20397,10 +20414,12 @@ void Player::SaveToDB(LoginDatabaseTransaction loginTransaction, CharacterDataba
                 else
                     ss << '0';
 
-                ss << ' ' << uint32(sItemStore.AssertEntry(item->GetVisibleEntry(this))->SubclassID) << ' ';
+                ss << ' '
+                    << uint32(sItemStore.AssertEntry(item->GetVisibleEntry(this))->SubclassID) << ' '
+                    << uint32(item->GetVisibleSecondaryModifiedAppearanceId(this)) << ' ';
             }
             else
-                ss << "0 0 0 0 ";
+                ss << "0 0 0 0 0 ";
         }
 
         stmt->setString(index++, ss.str());
@@ -20540,10 +20559,12 @@ void Player::SaveToDB(LoginDatabaseTransaction loginTransaction, CharacterDataba
                 else
                     ss << '0';
 
-                ss << ' ' << uint32(sItemStore.AssertEntry(item->GetVisibleEntry(this))->SubclassID) << ' ';
+                ss << ' '
+                    << uint32(sItemStore.AssertEntry(item->GetVisibleEntry(this))->SubclassID) << ' '
+                    << uint32(item->GetVisibleSecondaryModifiedAppearanceId(this)) << ' ';
             }
             else
-                ss << "0 0 0 0 ";
+                ss << "0 0 0 0 0 ";
         }
 
         stmt->setString(index++, ss.str());
@@ -23406,7 +23427,7 @@ void Player::UpdatePotionCooldown(Spell* spell)
     m_lastPotionId = 0;
 }
 
-void Player::SetResurrectRequestData(Unit* caster, uint32 health, uint32 mana, uint32 appliedAura)
+void Player::SetResurrectRequestData(WorldObject const* caster, uint32 health, uint32 mana, uint32 appliedAura)
 {
     ASSERT(!IsResurrectRequested());
     _resurrectionData.reset(new ResurrectionData());
@@ -24060,47 +24081,8 @@ Player* Player::GetSelectedPlayer() const
 {
     ObjectGuid selectionGUID = GetTarget();
     if (!selectionGUID.IsEmpty())
-        return ObjectAccessor::GetPlayer(*this, selectionGUID);
+        return ObjectAccessor::FindConnectedPlayer(selectionGUID);
     return nullptr;
-}
-
-void Player::AddComboPoints(int8 count, Spell* spell)
-{
-    if (!count)
-        return;
-
-    int8 comboPoints = spell ? spell->m_comboPointGain : GetPower(POWER_COMBO_POINTS);
-
-    comboPoints += count;
-
-    if (comboPoints > 5)
-        comboPoints = 5;
-    else if (comboPoints < 0)
-        comboPoints = 0;
-
-    if (!spell)
-        SetPower(POWER_COMBO_POINTS, comboPoints);
-    else
-        spell->m_comboPointGain = comboPoints;
-}
-
-void Player::GainSpellComboPoints(int8 count)
-{
-    if (!count)
-        return;
-
-    int8 cp = GetPower(POWER_COMBO_POINTS);
-
-    cp += count;
-    if (cp > 5) cp = 5;
-    else if (cp < 0) cp = 0;
-
-    SetPower(POWER_COMBO_POINTS, cp);
-}
-
-void Player::ClearComboPoints()
-{
-    SetPower(POWER_COMBO_POINTS, 0);
 }
 
 bool Player::IsInGroup(ObjectGuid groupGuid) const
@@ -26323,7 +26305,7 @@ void Player::StoreLootItem(uint8 lootSlot, Loot* loot, AELootResult* aeResult/* 
             SendNewItem(newitem, uint32(item->count), false, false, true);
             UpdateCriteria(CRITERIA_TYPE_LOOT_ITEM, item->itemid, item->count);
             UpdateCriteria(CRITERIA_TYPE_LOOT_TYPE, item->itemid, item->count, loot->loot_type);
-            UpdateCriteria(CRITERIA_TYPE_LOOT_EPIC_ITEM, item->itemid, item->count);
+            UpdateCriteria(CRITERIA_TYPE_LOOT_ANY_ITEM, item->itemid, item->count);
         }
         else
             aeResult->Add(newitem, item->count, loot->loot_type);
@@ -26608,10 +26590,10 @@ void Player::ResetCriteria(CriteriaFailEvent condition, int32 failAsset, bool ev
     m_questObjectiveCriteriaMgr->ResetCriteria(condition, failAsset, evenIfCriteriaComplete);
 }
 
-void Player::UpdateCriteria(CriteriaTypes type, uint64 miscValue1 /*= 0*/, uint64 miscValue2 /*= 0*/, uint64 miscValue3 /*= 0*/, Unit* unit /*= nullptr*/)
+void Player::UpdateCriteria(CriteriaTypes type, uint64 miscValue1 /*= 0*/, uint64 miscValue2 /*= 0*/, uint64 miscValue3 /*= 0*/, WorldObject* ref /*= nullptr*/)
 {
-    m_achievementMgr->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, unit, this);
-    m_questObjectiveCriteriaMgr->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, unit, this);
+    m_achievementMgr->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, ref, this);
+    m_questObjectiveCriteriaMgr->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, ref, this);
 
     // Update only individual achievement criteria here, otherwise we may get multiple updates
     // from a single boss kill
@@ -26619,10 +26601,10 @@ void Player::UpdateCriteria(CriteriaTypes type, uint64 miscValue1 /*= 0*/, uint6
         return;
 
     if (Scenario* scenario = GetScenario())
-        scenario->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, unit, this);
+        scenario->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, ref, this);
 
     if (Guild* guild = sGuildMgr->GetGuildById(GetGuildId()))
-        guild->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, unit, this);
+        guild->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, ref, this);
 }
 
 void Player::CompletedAchievement(AchievementEntry const* entry)

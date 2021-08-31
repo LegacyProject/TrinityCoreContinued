@@ -1616,6 +1616,9 @@ void SpellMgr::LoadSpellProcs()
                     TC_LOG_ERROR("sql.sql", "The `spell_proc` table entry for spellId %u has wrong `HitMask` set: %u", spellInfo->Id, procEntry.HitMask);
                 if (procEntry.HitMask && !(procEntry.ProcFlags & TAKEN_HIT_PROC_FLAG_MASK || (procEntry.ProcFlags & DONE_HIT_PROC_FLAG_MASK && (!procEntry.SpellPhaseMask || procEntry.SpellPhaseMask & (PROC_SPELL_PHASE_HIT | PROC_SPELL_PHASE_FINISH)))))
                     TC_LOG_ERROR("sql.sql", "The `spell_proc` table entry for spellId %u has `HitMask` value defined, but it will not be used for defined `ProcFlags` and `SpellPhaseMask` values.", spellInfo->Id);
+                for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+                    if ((procEntry.DisableEffectsMask & (1u << i)) && (!spellInfo->GetEffect(i) || !spellInfo->GetEffect(i)->IsAura()))
+                        TC_LOG_ERROR("sql.sql", "The `spell_proc` table entry for spellId %u has DisableEffectsMask with effect %u, but effect %u is not an aura effect", spellInfo->Id, static_cast<uint32>(i), static_cast<uint32>(i));
                 if (procEntry.AttributesMask & PROC_ATTR_REQ_SPELLMOD)
                 {
                     bool found = false;
@@ -1757,6 +1760,7 @@ void SpellMgr::LoadSpellProcs()
 
         bool addTriggerFlag = false;
         uint32 procSpellTypeMask = PROC_SPELL_TYPE_NONE;
+        uint32 nonProcMask = 0;
         for (SpellEffectInfo const* effect : spellInfo.GetEffects())
         {
             if (!effect || !effect->IsEffect())
@@ -1767,7 +1771,11 @@ void SpellMgr::LoadSpellProcs()
                 continue;
 
             if (!isTriggerAura[auraName])
+            {
+                // explicitly disable non proccing auras to avoid losing charges on self proc
+                nonProcMask |= 1 << effect->EffectIndex;
                 continue;
+            }
 
             procSpellTypeMask |= spellTypeMask[auraName];
             if (isAlwaysTriggeredAura[auraName])
@@ -1787,7 +1795,6 @@ void SpellMgr::LoadSpellProcs()
                         break;
                 }
             }
-            break;
         }
 
         if (!procSpellTypeMask)
@@ -1846,7 +1853,7 @@ void SpellMgr::LoadSpellProcs()
         }
 
         procEntry.AttributesMask  = 0;
-        procEntry.DisableEffectsMask = 0;
+        procEntry.DisableEffectsMask = nonProcMask;
         if (spellInfo.ProcFlags & PROC_FLAG_KILL)
             procEntry.AttributesMask |= PROC_ATTR_REQ_EXP_OR_HONOR;
         if (addTriggerFlag)
@@ -2918,7 +2925,6 @@ void SpellMgr::LoadSpellInfoCustomAttributes()
                 continue;
             }
 
-            // TODO: validate attributes
             for (SpellInfo const& spellInfo : spells)
             {
                 if (attributes & SPELL_ATTR0_CU_SHARE_DAMAGE)
@@ -3072,9 +3078,6 @@ void SpellMgr::LoadSpellInfoCustomAttributes()
                     break;
                 }
             }
-
-            if (!spellInfoMutable->_IsPositiveEffect(effect->EffectIndex, false))
-                spellInfoMutable->NegativeEffects[effect->EffectIndex] = true;
         }
 
         // spells ignoring hit result should not be binary
@@ -3159,6 +3162,8 @@ void SpellMgr::LoadSpellInfoCustomAttributes()
             spellInfoMutable->SchoolMask &= ~SPELL_SCHOOL_MASK_NORMAL;
             spellInfoMutable->AttributesCu |= SPELL_ATTR0_CU_SCHOOLMASK_NORMAL_WITH_MAGIC;
         }
+
+        spellInfoMutable->_InitializeSpellPositivity();
 
         if (talentSpells.count(spellInfoMutable->Id))
             spellInfoMutable->AttributesCu |= SPELL_ATTR0_CU_IS_TALENT;
@@ -3889,20 +3894,6 @@ void SpellMgr::LoadSpellInfoCorrections()
         spellInfo->MaxAffectedTargets = 1;
     });
 
-    // Boom (XT-002)
-    ApplySpellFix({ 62834 }, [](SpellInfo* spellInfo)
-    {
-        // This hack is here because we suspect our implementation of spell effect execution on targets
-        // is done in the wrong order. We suspect that EFFECT_0 needs to be applied on all targets,
-        // then EFFECT_1, etc - instead of applying each effect on target1, then target2, etc.
-        // The above situation causes the visual for this spell to be bugged, so we remove the instakill
-        // effect and implement a script hack for that.
-        ApplySpellEffectFix(spellInfo, EFFECT_1, [](SpellEffectInfo* spellEffectInfo)
-        {
-            spellEffectInfo->Effect = 0;
-        });
-    });
-
     ApplySpellFix({
         64386, // Terrifying Screech (Auriaya)
         64389, // Sentinel Blast (Auriaya)
@@ -4541,6 +4532,13 @@ void SpellMgr::LoadSpellInfoCorrections()
             if (effect->TargetA.GetSelectionCategory() == TARGET_SELECT_CATEGORY_CONE || effect->TargetB.GetSelectionCategory() == TARGET_SELECT_CATEGORY_CONE)
                 if (G3D::fuzzyEq(spellInfo->ConeAngle, 0.f))
                     spellInfo->ConeAngle = 90.f;
+
+            // Area auras may not target area (they're self cast)
+            if (effect->IsAreaAuraEffect() && effect->IsTargetingArea())
+            {
+                const_cast<SpellEffectInfo*>(effect)->TargetA = SpellImplicitTargetInfo(TARGET_UNIT_CASTER);
+                const_cast<SpellEffectInfo*>(effect)->TargetB = SpellImplicitTargetInfo(0);
+            }
         }
 
         // disable proc for magnet auras, they're handled differently
@@ -4553,6 +4551,9 @@ void SpellMgr::LoadSpellInfoCorrections()
 
         if (spellInfo->ActiveIconFileDataId == 135754)  // flight
             spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+
+        if (spellInfo->IsSingleTarget())
+            spellInfo->MaxAffectedTargets = 1;
     }
 
     if (SummonPropertiesEntry* properties = const_cast<SummonPropertiesEntry*>(sSummonPropertiesStore.LookupEntry(121)))
