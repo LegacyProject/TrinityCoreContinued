@@ -67,6 +67,7 @@ void AddSC_boss_flamegor();
 void AddSC_boss_chromaggus();
 void AddSC_boss_nefarian();
 void AddSC_instance_blackwing_lair();
+void AddSC_dalaran_deadwind();                //Dalaran Deadwind
 void AddSC_deadmines();                      //Deadmines
 void AddSC_instance_deadmines();
 void AddSC_boss_glubtok();
@@ -197,6 +198,7 @@ void AddSC_isle_of_queldanas();
 void AddSC_redridge_mountains();
 void AddSC_silverpine_forest();
 void AddSC_stormwind_city();
+void AddSC_stormwind_keep();
 void AddSC_stranglethorn_vale();
 void AddSC_swamp_of_sorrows();
 void AddSC_tirisfal_glades();
@@ -260,6 +262,7 @@ void AddEasternKingdomsScripts()
     AddSC_boss_chromaggus();
     AddSC_boss_nefarian();
     AddSC_instance_blackwing_lair();
+    AddSC_dalaran_deadwind();               //Dalaran Deadwind
     AddSC_deadmines();                      //Deadmines
     AddSC_instance_deadmines();
     AddSC_boss_glubtok();
@@ -391,6 +394,7 @@ void AddEasternKingdomsScripts()
     AddSC_redridge_mountains();
     AddSC_silverpine_forest();
     AddSC_stormwind_city();
+    AddSC_stormwind_keep();
     AddSC_stranglethorn_vale();
     AddSC_swamp_of_sorrows();
     AddSC_tirisfal_glades();

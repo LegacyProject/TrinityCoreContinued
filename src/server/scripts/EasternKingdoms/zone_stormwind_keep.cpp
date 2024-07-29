@@ -16,38 +16,35 @@
 */
 
 #include "ScriptMgr.h"
-#include "PhasingHandler.h"
 #include "Player.h"
+#include "PhasingHandler.h"
 
-enum BlinkOfAnEye
+enum DemonsAmongUs
 {
-    MAP_BROKEN_ISLES                = 1220,
-    KILL_CREDIT_TELEPORT_DALARAN    = 114506,
+	KILL_CREDIT_GOSSIP_SELECTED = 111585,
 };
 
-class scene_dalaran_teleport : public SceneScript
+class scene_demons_among_us_alliance : public SceneScript
 {
 public:
-    scene_dalaran_teleport() : SceneScript("scene_dalaran_teleport") { }
-
-    // Called when a scene is canceled
-    void OnSceneCancel(Player* player, uint32 /*sceneInstanceID*/, SceneTemplate const* /*sceneTemplate*/) override
+    scene_demons_among_us_alliance() : SceneScript("scene_demons_among_us_alliance") { }
+	
+	// Called when a scene is canceled
+	void OnSceneCancel(Player* player, uint32 /*sceneInstanceID*/, SceneTemplate const* /*sceneTemplate*/) override
     {
-        player->TeleportTo(MAP_BROKEN_ISLES, -827.82f, 4369.25f, 738.64f, 1.893364f);
-        player->KilledMonsterCredit(KILL_CREDIT_TELEPORT_DALARAN);
+        player->KilledMonsterCredit(KILL_CREDIT_GOSSIP_SELECTED);
         PhasingHandler::OnConditionChange(player);
     }
 
     // Called when a scene is completed
     void OnSceneComplete(Player* player, uint32 /*sceneInstanceID*/, SceneTemplate const* /*sceneTemplate*/) override
     {
-        player->TeleportTo(MAP_BROKEN_ISLES, -827.82f, 4369.25f, 738.64f, 1.893364f);
-        player->KilledMonsterCredit(KILL_CREDIT_TELEPORT_DALARAN);
+        player->KilledMonsterCredit(KILL_CREDIT_GOSSIP_SELECTED);
         PhasingHandler::OnConditionChange(player);
     }
 };
 
-void AddSC_dalaran_deadwind()
+void AddSC_stormwind_keep()
 {
-    new scene_dalaran_teleport();
+	new scene_demons_among_us_alliance();
 }

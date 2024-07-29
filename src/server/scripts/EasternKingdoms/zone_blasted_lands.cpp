@@ -147,10 +147,33 @@ public:
     }
 };
 
-enum DreanorIntro
+enum TanaanIntro
 {
-    SCENE_ENTER_THE_PORTAL    = 185,
-    SPELL_TELEPORT_TO_TANAAN  = 167771,
+    QUEST_THE_DARK_PORTAL       = 34398,
+    SCENE_DARK_PORTAL           = 199,
+    MAP_TANAAN_JUNGLE           = 1265,
+    KILLCREDIT_TALK_TO_KHADGAR  = 78419,
+};
+
+// Archmage Khadgar - 78423
+class npc_archmage_khadgar_78423 : public CreatureScript
+{
+public:
+    npc_archmage_khadgar_78423() : CreatureScript("npc_archmage_khadgar_78423") { }
+
+    bool OnGossipSelect(Player* player, Creature* /*creature*/, uint32 /*sender*/, uint32 /*action*/) override
+    {
+        if (player->GetQuestStatus(QUEST_THE_DARK_PORTAL) == QUEST_STATUS_NONE)
+            return true;
+
+        if (player->GetQuestStatus(QUEST_THE_DARK_PORTAL) == QUEST_STATUS_INCOMPLETE)
+        {
+            player->SendMovieStart(SCENE_DARK_PORTAL);
+            player->KilledMonsterCredit(KILLCREDIT_TALK_TO_KHADGAR);
+            return true;
+        }
+        return true;
+    }
 };
 
 class player_teleport_to_tanaan : public PlayerScript
@@ -160,8 +183,8 @@ public:
 
     void OnMovieComplete(Player* player, uint32 movieId) override
     {
-        if (movieId == SCENE_ENTER_THE_PORTAL)
-            player->CastSpell(player, SPELL_TELEPORT_TO_TANAAN);
+        if (movieId == SCENE_DARK_PORTAL)
+            player->TeleportTo(MAP_TANAAN_JUNGLE, 4066.7370f, -2381.9917f, 94.858f, 2.90f);
     }
 };
 
@@ -169,5 +192,6 @@ void AddSC_blasted_lands()
 {
     new spell_razelikh_teleport_group();
     new npc_zidormi_blasted_lands();
+    new npc_archmage_khadgar_78423();
     new player_teleport_to_tanaan();
 }

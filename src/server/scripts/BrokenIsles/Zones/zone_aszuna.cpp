@@ -15,14 +15,7 @@
 * with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "MotionMaster.h"
-#include "MovementTypedefs.h"
-#include "ObjectAccessor.h"
-#include "PhasingHandler.h"
-#include "Player.h"
-#include "ScriptedCreature.h"
 #include "ScriptMgr.h"
-#include "TemporarySummon.h"
 
 void AddSC_aszuna()
 {
