@@ -17,11 +17,14 @@
 
 #include "GameObject.h"
 #include "GameObjectAI.h"
+#include "ObjectMgr.h"
 #include "Player.h"
 #include "PhasingHandler.h"
 #include "QuestDef.h"
 #include "ScriptedCreature.h"
 #include "ScriptMgr.h"
+#include "SceneMgr.h"
+#include "Chat.h"
 #include "Unit.h"
 
 enum Creatures
@@ -34,6 +37,11 @@ enum Creatures
     NPC_CHOGALL                         = 81695,
     NPC_KHADGAR_SHIELD_TARGET_DUMMY     = 82305,
     NPC_GULDAN                          = 78333,
+};
+
+enum KillCredits
+{
+    CREDIT_ENTER_GULDAN_PRISON          = 82573,
 };
 
 enum CreatureText
@@ -58,12 +66,18 @@ enum Quests
     QUEST_AZEROTHS_LAST_STAND           = 35933,
 };
 
+enum Objectives
+{
+    OBJ_SOUTHERN_SPIRE_DISABLED         = 273946,
+    OBJ_NORTHERN_SPIRE_DISABLED         = 272621,
+};
+
 enum Scenes
 {
     // Dark Portal
     SCENE_CHOGALL_FREED                 = 961,
     SCENE_TERONGOR_FREED                = 962,
-    SCENE_DETONATION_DWARVES            = 937,
+    SCENE_DETONATION                    = 937,
     SCENE_GULDAN_REVEAL                 = 925,
     SCENE_GULDAN_FREED                  = 808,
 };
@@ -79,6 +93,11 @@ enum Spells
     SPELL_THAELIN_EVENT_AURA            = 164677,
     SPELL_HANSEL_EVENT_AURA             = 167689,
 
+};
+
+enum Etc
+{
+    MAP_TANAAN_JUNGLE = 1265,
 };
 
 class npc_archmage_khadgar_78558 : public CreatureScript
@@ -177,7 +196,7 @@ public:
                     if (!trigger)
                     {
                         Talk(SAY_THAELIN_FIRST_LINE, player);
-                        player->AddAura(SPELL_THAELIN_EVENT_AURA, player);
+                        player->GetSceneMgr().PlaySceneByPackageId(SCENE_DETONATION);
                         trigger = true;
                     }
                 }
@@ -217,7 +236,7 @@ public:
                     if (!trigger)
                     {
                         Talk(SAY_HANSEL_FIRST_LINE, player);
-                        player->AddAura(SPELL_HANSEL_EVENT_AURA, player);
+                        player->GetSceneMgr().PlaySceneByPackageId(SCENE_DETONATION);
                         trigger = true;
                     } 
                 }
@@ -228,6 +247,51 @@ public:
     CreatureAI* GetAI(Creature* creature) const override
     {
         return new npc_hansel_heavyhands_78569AI(creature);
+    }
+};
+
+// Place Holder for Onslaught's End
+
+// Place Holder End
+
+class npc_gul_dan_78333 : public CreatureScript
+{
+public:
+    npc_gul_dan_78333() : CreatureScript("npc_gul_dan_78333") {}
+
+    struct npc_gul_dan_78333AI : public ScriptedAI
+    {
+        npc_gul_dan_78333AI(Creature* creature) : ScriptedAI(creature)
+        {
+            scene = false;
+        }
+
+        bool scene;
+
+        void MoveInLineOfSight(Unit* who) override
+        {
+            Player* player = who->ToPlayer();
+            if (!player)
+                return;
+
+            if (player->GetDistance2d(me) >= 40.0f)
+                return;
+
+            if (player->GetPositionZ() - 5.0f > me->GetPositionZ())
+                return;
+
+            if (!scene)
+            {
+                player->KilledMonsterCredit(CREDIT_ENTER_GULDAN_PRISON);
+                player->GetSceneMgr().PlaySceneByPackageId(SCENE_GULDAN_REVEAL);
+                scene = true;
+            }
+        }
+    };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return new npc_gul_dan_78333AI(creature);
     }
 };
 
@@ -272,5 +336,6 @@ void AddSC_zone_draenor_darkportal_assault()
     new npc_archmage_khadgar_78558();
     new npc_thaelin_darkanvil_78568();
     new npc_hansel_heavyhands_78569();
+    new npc_gul_dan_78333();
     new go_dark_portal();
 };

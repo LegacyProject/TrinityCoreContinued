@@ -49,5 +49,5 @@ public:
 
 void AddSC_dalaran_deadwind()
 {
-    new scene_dalaran_teleport();
+    // new scene_dalaran_teleport();
 }

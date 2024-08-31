@@ -1,0 +1,53 @@
+-- mage orderhall cleanup
+
+SET @CGUID := 600092;
+
+UPDATE `creature` SET `guid`=@CGUID+0 WHERE `guid`=20540860;
+UPDATE `creature` SET `guid`=@CGUID+1 WHERE `guid`=20540848;
+UPDATE `creature` SET `guid`=@CGUID+2 WHERE `guid`=20540868;
+UPDATE `creature` SET `guid`=@CGUID+3 WHERE `guid`=20540869;
+UPDATE `creature` SET `guid`=@CGUID+4 WHERE `guid`=20540891;
+UPDATE `creature` SET `guid`=@CGUID+5 WHERE `guid`=20540892;
+UPDATE `creature` SET `guid`=@CGUID+6 WHERE `guid`=20540888;
+UPDATE `creature` SET `guid`=@CGUID+7 WHERE `guid`=20540911;
+UPDATE `creature` SET `guid`=@CGUID+8 WHERE `guid`=20540862;
+UPDATE `creature` SET `guid`=@CGUID+9 WHERE `guid`=20540859;
+UPDATE `creature` SET `guid`=@CGUID+10 WHERE `guid`=20540857;
+UPDATE `creature` SET `guid`=@CGUID+11 WHERE `guid`=20540876;
+UPDATE `creature` SET `guid`=@CGUID+12 WHERE `guid`=20540880;
+UPDATE `creature` SET `guid`=@CGUID+13 WHERE `guid`=20540877;
+UPDATE `creature` SET `guid`=@CGUID+14 WHERE `guid`=20540841;
+UPDATE `creature` SET `guid`=@CGUID+15 WHERE `guid`=20540833;
+UPDATE `creature` SET `guid`=@CGUID+16 WHERE `guid`=20540829;
+UPDATE `creature` SET `guid`=@CGUID+17 WHERE `guid`=20540843;
+UPDATE `creature` SET `guid`=@CGUID+18 WHERE `guid`=20540845;
+UPDATE `creature` SET `guid`=@CGUID+19 WHERE `guid`=20540847;
+UPDATE `creature` SET `guid`=@CGUID+20 WHERE `guid`=20540865;
+UPDATE `creature` SET `guid`=@CGUID+21 WHERE `guid`=20540870;
+UPDATE `creature` SET `guid`=@CGUID+22 WHERE `guid`=20540858;
+UPDATE `creature` SET `guid`=@CGUID+23 WHERE `guid`=20540861;
+
+UPDATE `creature_addon` SET `guid`=@CGUID+0 WHERE `guid`=20540860;
+UPDATE `creature_addon` SET `guid`=@CGUID+1 WHERE `guid`=20540848;
+UPDATE `creature_addon` SET `guid`=@CGUID+2 WHERE `guid`=20540868;
+UPDATE `creature_addon` SET `guid`=@CGUID+3 WHERE `guid`=20540869;
+UPDATE `creature_addon` SET `guid`=@CGUID+4 WHERE `guid`=20540891;
+UPDATE `creature_addon` SET `guid`=@CGUID+5 WHERE `guid`=20540892;
+UPDATE `creature_addon` SET `guid`=@CGUID+6 WHERE `guid`=20540888;
+UPDATE `creature_addon` SET `guid`=@CGUID+7 WHERE `guid`=20540911;
+UPDATE `creature_addon` SET `guid`=@CGUID+8 WHERE `guid`=20540862;
+UPDATE `creature_addon` SET `guid`=@CGUID+9 WHERE `guid`=20540859;
+UPDATE `creature_addon` SET `guid`=@CGUID+10 WHERE `guid`=20540857;
+UPDATE `creature_addon` SET `guid`=@CGUID+11 WHERE `guid`=20540876;
+UPDATE `creature_addon` SET `guid`=@CGUID+12 WHERE `guid`=20540880;
+UPDATE `creature_addon` SET `guid`=@CGUID+13 WHERE `guid`=20540877;
+UPDATE `creature_addon` SET `guid`=@CGUID+14 WHERE `guid`=20540841;
+UPDATE `creature_addon` SET `guid`=@CGUID+15 WHERE `guid`=20540833;
+UPDATE `creature_addon` SET `guid`=@CGUID+16 WHERE `guid`=20540829;
+UPDATE `creature_addon` SET `guid`=@CGUID+17 WHERE `guid`=20540843;
+UPDATE `creature_addon` SET `guid`=@CGUID+18 WHERE `guid`=20540845;
+UPDATE `creature_addon` SET `guid`=@CGUID+19 WHERE `guid`=20540847;
+UPDATE `creature_addon` SET `guid`=@CGUID+20 WHERE `guid`=20540865;
+UPDATE `creature_addon` SET `guid`=@CGUID+21 WHERE `guid`=20540870;
+UPDATE `creature_addon` SET `guid`=@CGUID+22 WHERE `guid`=20540858;
+UPDATE `creature_addon` SET `guid`=@CGUID+23 WHERE `guid`=20540861;

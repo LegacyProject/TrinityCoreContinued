@@ -89,6 +89,33 @@ struct AdventureJournalLoadInfo
     }
 };
 
+struct AdventureMapPOILoadInfo
+{
+    static DB2LoadInfo const* Instance()
+    {
+        static DB2FieldMeta const fields[] =
+        {
+            { true, FT_INT, "ID" },
+            { false, FT_STRING, "Title" },
+            { false, FT_STRING, "Description" },
+            { false, FT_FLOAT, "WorldPosition1" },
+            { false, FT_FLOAT, "WorldPosition2" },
+            { true, FT_INT, "RewardItemID" },
+            { false, FT_BYTE, "Type" },
+            { true, FT_INT, "PlayerConditionID" },
+            { true, FT_INT, "QuestID" },
+            { true, FT_INT, "LfgDungeonID" },
+            { true, FT_INT, "UiTextureAtlasMemberID" },
+            { true, FT_INT, "UiTextureKitID" },
+            { true, FT_INT, "WorldMapAreaID" },
+            { true, FT_INT, "DungeonMapID" },
+            { true, FT_INT, "AreaTableID" },
+        };
+        static DB2LoadInfo const loadInfo(&fields[0], std::extent<decltype(fields)>::value, AdventureMapPOIMeta::Instance(), HOTFIX_SEL_ADVENTURE_MAP_P_O_I);
+        return &loadInfo;
+    }
+};
+
 struct AnimKitLoadInfo
 {
     static DB2LoadInfo const* Instance()

@@ -1489,11 +1489,11 @@ void AddSC_warlock_spell_scripts()
     new spell_warl_demonic_circle_summon();
     new spell_warl_demonic_circle_teleport();
     new spell_warl_demonic_empowerment();
-    new spell_warl_demon_soul();
+    // new spell_warl_demon_soul();
     new spell_warl_devour_magic();
-    new spell_warl_everlasting_affliction();
-    new spell_warl_fel_synergy();
-    new spell_warl_glyph_of_shadowflame();
+    // new spell_warl_everlasting_affliction();
+    // new spell_warl_fel_synergy();
+    // new spell_warl_glyph_of_shadowflame();
     new spell_warl_haunt();
     new spell_warl_health_funnel();
     new spell_warl_healthstone_heal();
