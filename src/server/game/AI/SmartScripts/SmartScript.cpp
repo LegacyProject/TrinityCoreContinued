@@ -2905,6 +2905,21 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
 
             break;
         }
+        case SMART_ACTION_UPDATE_ACHIEVEMENT_CRITERIA:
+        {
+            ObjectList* targets = GetTargets(e, unit);
+            if (!targets)
+                break;
+
+            for (WorldObject* const target : *targets)
+            {
+                if (!IsUnit(target))
+                    continue;
+                if (Player* player = target->ToUnit()->ToPlayer())
+                    player->UpdateCriteria(static_cast<CriteriaTypes>(e.action.achievementCriteria.type), e.action.achievementCriteria.misc1, e.action.achievementCriteria.misc2, e.action.achievementCriteria.misc3, unit);
+            }
+            break;
+        }
         default:
             TC_LOG_ERROR("sql.sql", "SmartScript::ProcessAction: Entry " SI64FMTD " SourceType %u, Event %u, Unhandled Action type %u", e.entryOrGuid, e.GetScriptType(), e.event_id, e.GetActionType());
             break;
